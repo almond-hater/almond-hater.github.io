@@ -1,13 +1,13 @@
 # Site settings
-title_left    : "For"
-title_right   : "Study" # default: ""
+title_left    : "Deeo"
+title_right   : "Learning" # default: ""
 description   : "Minimalist Jekyll theme for technical writing blog."
-keywords      : "Jekyll, theme, free, download, SEO, blog, web, minimalist, thinkspace"
+keywords      : "Jekyll, Deeplearning, CNN, RNN, TimeSeries, Prediction"
 url           : https://almond-hater.github.io/ # site url
 baseurl       : "" # apply repo name like "/myproject" if used under gh-pages branch, else (under master branch) just leave empty/blank
 cover         : "" # image uri like logo/cover image for site seo
 
-google_analytics  : UA-XXXXX-XX
+#google_analytics  : UA-XXXXX-XX
 #twitter_username  : ""
 comments_enabled  : false # if enabled (set to true), please provide your disqus_username
 disqus_shortname  : ""

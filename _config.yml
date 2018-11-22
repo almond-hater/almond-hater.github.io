@@ -1,7 +1,7 @@
 # Site settings
-title_left    : "Deeo"
+title_left    : "Deep"
 title_right   : "Learning" # default: ""
-description   : "Minimalist Jekyll theme for technical writing blog."
+description   : "Jooheui Son"
 keywords      : "Jekyll, Deeplearning, CNN, RNN, TimeSeries, Prediction"
 url           : https://almond-hater.github.io/ # site url
 baseurl       : "" # apply repo name like "/myproject" if used under gh-pages branch, else (under master branch) just leave empty/blank

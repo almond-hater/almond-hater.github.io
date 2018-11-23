@@ -1,6 +1,6 @@
 # Site settings
 title_left    : "Deep"
-title_right   : "Learning" # default: ""
+title_right   : "  Learning" # default: ""
 description   : "Jooheui Son"
 keywords      : "Jekyll, Deeplearning, CNN, RNN, TimeSeries, Prediction"
 url           : https://almond-hater.github.io/ # site url

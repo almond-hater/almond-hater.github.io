@@ -517,12 +517,78 @@ def add(v,w):
     X,Y = w
     return (x+X, y+Y)
 ```
+유클리디안 거리를 활용하여 average distance를 계산합니다. 그리고 hybrid novelty detection socre를 수식을 활용하여 표현합니다.
+```python
+def euclideanDistance(instance1, instance2, length):
+    distance = 0
+    for x in range(length):
+        distance += pow((instance1[x] - instance2[x]), 2)
+    return math.sqrt(distance)
+
+def getNeighbors(trainingSet, testInstance, k):
+    distances = []
+    length = len(testInstance)-1
+    for x in range(len(trainingSet)):
+        dist = euclideanDistance(testInstance, trainingSet[x], length)
+        distances.append((trainingSet[x], dist))
+    distances.sort(key=operator.itemgetter(1))
+    neighbors = []
+    for x in range(k):
+        neighbors.append(distances[x])
+    return neighbors
+
+
+def main():  
+    ch = ConvexHull()
+
+
+    trainingSet = [[1,1,'s'],[3,1,'s'],[2,1,'s'],[1.5,2,'s'],[2.5,2,'s']]
+    testSet = [[1.15,1.2,'a'],[2,2.2,'a']]
+
+    arrtrainingSet=np.array(trainingSet)
+    arrtestSet=np.array(testSet)
+
+    arrtrainingSet=arrtrainingSet[:,:-1].astype(np.float)
+    arrtestSet=arrtestSet[:,:-1].astype(np.float)
+  
+    for i in range(arrtrainingSet.shape[0]):
+        ch.add(Point(arrtrainingSet[i,0], arrtrainingSet[i,1]))
+
+
+
+    getConvexHullPoint=np.array(ch.get_hull_points())
+    ch.display()
+
+    print('ConvexHullPoint:',getConvexHullPoint)
+
+    convex_dist=getconvexdist(arrtestSet,getConvexHullPoint)
+
+    print('convex_dist:',convex_dist)
+        
+    k = 5
+    neighbors_inform=[]
+    for x in range(len(testSet)):
+        neighbors = getNeighbors(trainingSet, testSet[x], k)
+        neighbors_inform.append(neighbors)
+        
+    neighbors_dist=np.array(neighbors_inform)[:,:,1]
+    knn_dist_avg=np.mean(neighbors_dist,axis=1)
+    
+    
+    print('knn_dist_avg:',knn_dist_avg)
+    
+    knn_dist_hybrid=knn_dist_avg*2/(1+np.exp(-convex_dist))
+    print('knn_dist_hybrid:',knn_dist_hybrid)
+    
+    
+main()
+```
 
 
 #2.K-means clustering-based novelty detection
 
 2-1. 절대적 거리기반의 K-means clustering-based novelty detection
-clustering기반의 novelty score 방법론의 소개할 방법론으로 K-means clustering-based novelty detection입니다.
+clustering기반의 novelty score 방법론의 소개할 이론은 K-means clustering-based novelty detection입니다.
 
 K-means clustering-based novelty score는 가장 가까운 중심에 대한 거리 정보를 기초하여 계산됩니다. 여기에서도 마찬가지로 다수의 범주의 사전 확률 분포는 고려하지 않습니다. K-NN에서의 K의 갯수는 이웃의 개수이지만, K-means의 K는 중심의 개수를 의미합니다. 각 군집에서 멀수록 이상치라고 판단하는 것이 기본 매커니즘 입니다.
 
@@ -541,6 +607,119 @@ k-means클러스터링을 하는 방법은 아래와 같습니다.
 
 **마지막 단계에서 정해진 중심점 좌표와 데이터 셋의 instance와의 거리를 비교하여 최근접 군집 중심좌표와의 거리가 novelty score가 되는 것입니다.**
 
+*** 절대적 거리기반의 K-means clustering-based novelty detection 코드***
+```python
+import numpy as np
+import random
+import csv
+import matplotlib.pyplot as plt
+
+#파일로 데이터 입력(Column Name없이), 파일명 : ex_kmc.csv
+def loadDataset(filename, split, trainingSet=[] , testSet=[]):
+    with open(filename, 'r') as csvfile:
+        lines = csv.reader(csvfile)
+        dataset = list(lines)
+        for x in range(len(dataset)):
+            for y in range(2):
+                dataset[x][y] = float(dataset[x][y])
+            if random.random() < split:
+                trainingSet.append(dataset[x])
+            else:
+                testSet.append(dataset[x])  
+  
+#중심점이 변하지 않을때까지 클러스터링 실행       
+def kmeans(X,k,maxIt):
+    numPoints,numDim=X.shape
+
+    dataSet=np.zeros((numPoints,numDim+1))
+    dataSet[:,:-1]=X
+    centroids=dataSet[np.random.randint(numPoints,size=k),:]
+    centroids[:,-1]=range(1,k+1)
+    #print("centroids:",centroids)
+
+    iterations=0;
+    oldCentroids=None
+    while not shouldStop(oldCentroids, centroids, iterations, maxIt):
+        oldCentroids=np.copy(centroids)
+        iterations+=1
+        updateLabels(dataSet, centroids)
+        centroids=getCentroids(dataSet, k)
+    return dataSet, centroids
+
+#중심점이 변하지 않으면 EM알고리즘 STOP!
+def shouldStop(oldCentroids,centroids,iterations,maxIt):
+    if iterations>maxIt:
+        return True
+    return np.array_equal(oldCentroids, centroids)
+
+def updateLabels(dataSet,centroids):
+    numPoints,numDim=dataSet.shape
+    for i in range(numPoints):
+        dataSet[i,-1]=getLabelFromClosestCentroid(dataSet[i,:-1], centroids)
+
+def getLabelFromClosestCentroid(dataSetRow,centroids):
+    label=centroids[0,-1]
+    minDist=np.linalg.norm(dataSetRow-centroids[0,:-1])
+    for i in range(1,centroids.shape[0]):
+        dist=np.linalg.norm(dataSetRow-centroids[i,:-1])
+        if dist<minDist:
+            minDist=dist
+            label=centroids[i,-1]
+            #print("label:"+str(label))
+    return label
+
+def getCentroids(dataSet,k):       
+    result=np.zeros((k,dataSet.shape[1]))
+    #print("result:",result)
+    for i in range(1,k+1):
+        oneCluster=dataSet[dataSet[:,-1]==i,:-1]
+        #print("cluster:",oneCluster)
+        result[i-1,:-1]=np.mean(oneCluster,axis=0)
+        result[i-1,-1]=i
+    #print("result:",result)
+    return result
+
+#데이터와 중심점(군집별로 다함)의 차이를 중 minDist에 저장하여 거기에 최소값을 뽑아냄(가장 가까이 있는 군집과 비교해야 하므로)
+def getNoveltyScore(dataSetRow,centroids,k):
+    minDist=[]    
+    for i in range(k):
+        Dist=np.linalg.norm(dataSetRow[:,:-1]-centroids[i,:-1],axis=1)   
+        minDist.append(Dist)        
+    NoveltyScore=np.min(minDist,axis=0)
+    #print(minDist)
+    #print(NoveltyScore)
+    return NoveltyScore
+
+
+def main():
+    # prepare data
+    trainingSet=[]
+    testSet=[]
+    split = 1
+    random.seed(100)
+    loadDataset('ex_kmc2.csv', split, trainingSet, testSet)
+    trainX=np.array(trainingSet)
+    
+    # k=군집개수, max_iter=반복 회수 제한(Hyper parameter)   
+    k=2
+    max_iter=100
+    final_result=kmeans(trainX[:,:-1],k,max_iter)
+    
+    kmeans_result=final_result[0]
+    centroid_result=final_result[1]
+    Score=getNoveltyScore(kmeans_result,centroid_result,k)
+    
+    x=kmeans_result[:,0]
+    y=kmeans_result[:,1]
+    colors=kmeans_result[:,2]
+    
+    plt.figure(figsize=(7, 3), dpi=80)
+    plt.scatter(x, y, s=(Score**3)*3, c=colors);
+    plt.xticks(np.arange(-1,8,2))
+    plt.yticks(np.arange(-1.5,1.6,0.5))
+
+main()
+```
 
 2-2. 상대적 거리기반의 K-means clustering-based novelty detection
 
@@ -550,6 +729,194 @@ k-means클러스터링을 하는 방법은 아래와 같습니다.
 
 그러나 이러한 알고리즘의 단점은 outlier에 취약합니다. 아무래도 부피를 계산할때 군집의 centroid와 군집 객체와의 최대거리로 하였기 때문에 outlier가 존재하면 부피가 왜곡되는 현상이 발생합니다. 이를 방지하기 위해서는 k-means clustering을 통해 outlier의 제거가 필요합니다. 
 
+*** 상대적 거리기반의 K-means clustering-based novelty detection 코드***
+아래코드는 1번의 k-means clustering를 통하여 outlier를 제거하는 과정이 포함되어 있습니다.
+```python
+%matplotlib inline
+import numpy as np
+import random
+import csv
+import matplotlib.pyplot as plt
+
+
+#파일로 데이터 입력(Column Name없이), 파일명 : ex_kmc.csv
+def loadDataset(filename, split, trainingSet=[] , testSet=[]):
+    with open(filename, 'r') as csvfile:
+        lines = csv.reader(csvfile)
+        dataset = list(lines)
+        for x in range(len(dataset)):
+            for y in range(2):
+                dataset[x][y] = float(dataset[x][y])
+            if random.random() < split:
+                trainingSet.append(dataset[x])
+            else:
+                testSet.append(dataset[x])  
+  
+         
+def kmeans(X,k,maxIt):
+    numPoints,numDim=X.shape
+
+    dataSet=np.zeros((numPoints,numDim+1))
+    dataSet[:,:-1]=X
+    centroids=dataSet[np.random.randint(numPoints,size=k),:]
+    centroids[:,-1]=range(1,k+1)
+    #print("centroids:",centroids)
+
+    iterations=0;
+    oldCentroids=None
+    while not shouldStop(oldCentroids, centroids, iterations, maxIt):
+        oldCentroids=np.copy(centroids)
+        iterations+=1
+        updateLabels(dataSet, centroids)
+        centroids=getCentroids(dataSet, k)
+    return dataSet, centroids
+
+
+def shouldStop(oldCentroids,centroids,iterations,maxIt):
+    if iterations>maxIt:
+        return True
+    return np.array_equal(oldCentroids, centroids)
+
+def updateLabels(dataSet,centroids):
+    numPoints,numDim=dataSet.shape
+    for i in range(numPoints):
+        dataSet[i,-1]=getLabelFromClosestCentroid(dataSet[i,:-1], centroids)
+
+def getLabelFromClosestCentroid(dataSetRow,centroids):
+    label=centroids[0,-1]
+    minDist=np.linalg.norm(dataSetRow-centroids[0,:-1])
+    for i in range(1,centroids.shape[0]):
+        dist=np.linalg.norm(dataSetRow-centroids[i,:-1])
+        if dist<minDist:
+            minDist=dist
+            label=centroids[i,-1]
+            #print("label:"+str(label))
+    return label
+
+
+def getCentroids(dataSet,k):       
+    result=np.zeros((k,dataSet.shape[1]))
+    #print("result:",result)
+    for i in range(1,k+1):
+        oneCluster=dataSet[dataSet[:,-1]==i,:-1]
+        #print("cluster:",oneCluster)
+        result[i-1,:-1]=np.mean(oneCluster,axis=0)
+        result[i-1,-1]=i
+    #print("result:",result)
+    return result
+
+#이부분이 위에서 설명한 상대적 novelty score설명하는 부분(밀도기반)
+def getNoveltyScore(dataSetRow,centroids,k):
+    minDist=[]  
+    maxDist=[]
+    for i in range(k):
+        Dist=np.linalg.norm(dataSetRow[:,:-1]-centroids[i,:-1],axis=1)   
+        minDist.append(Dist)     
+    
+    NoveltyScore=np.min(minDist,axis=0)
+    min_index=np.argmin(minDist,axis=0)
+    
+    for i in range(k):
+        clusterDist=NoveltyScore[np.where(min_index==i)]   
+        maxDist.append(np.max(clusterDist))
+    
+#    a=centroids[min_index,-1]
+#    print(a)
+    #print(NoveltyScore)
+    return NoveltyScore,maxDist
+
+
+def getModNoveltyScore(kmeans_result,centroid_result,maxDist,k):
+    minDist=[]
+    countcluster=[]    
+    for i in range(k):
+        Dist=np.linalg.norm(kmeans_result[:,:-1]-centroid_result[i,:-1],axis=1)
+        minDist.append(Dist)
+        count=np.sum(kmeans_result[:,-1]==i+1)
+        countcluster.append(count)           
+
+    NoveltyScore=np.min(minDist,axis=0)
+    weight=(countcluster/np.min(countcluster))/maxDist
+    scale_weight=weight/np.min(weight)
+    mod_NoveltyScore = NoveltyScore*np.repeat(scale_weight,countcluster,axis=0)
+
+#    print(np.repeat(scale_weight,countcluster,axis=0))
+#    print(countcluster)
+#    print(np.min(countcluster))
+#    print(scale_weight)
+#    print(minDist)
+#    print(MaxDist)
+#    print(NoveltyScore)
+   
+    return mod_NoveltyScore
+
+
+def main():
+    # prepare data
+    trainingSet=[]
+    testSet=[]
+    split = 1
+    random.seed(100)
+    loadDataset('ex_kmc2.csv', split, trainingSet, testSet)
+    trainX=np.array(trainingSet)
+    
+    #print('Train set: ' ,repr(len(trainingSet)))
+    #print('Test set: ' + repr(len(testSet)))
+    #print('Train set: ' ,trainingSet[0:10])
+    #a=trainX[:,:-1].astype(np.float)
+    #plt.scatter(a[:,0], a[:,1]);
+    
+    # k=군집개수, max_iter=반복 회수 제한(Hyper parameter)   
+    k=2
+    max_iter=100
+    final_result=kmeans(trainX[:,:-1],k,max_iter)
+
+    kmeans_result=final_result[0]
+    centroid_result=final_result[1]
+    
+    NoveltyScore_result=getNoveltyScore(kmeans_result,centroid_result,k)  
+    Score=NoveltyScore_result[0]
+    maxDist=NoveltyScore_result[1]
+    
+    print('final centroid:',centroid_result)
+    print('maxDist:',maxDist)
+    print('Novelty Score:',Score)
+
+
+    #Outlier제거
+    outlier_percentage=0.98
+    Distsorting=np.argsort(Score)
+    outlier_point=int(Distsorting.shape[0]*outlier_percentage)    
+    cutoff_index=Distsorting[0:outlier_point]
+    trainX=trainX[cutoff_index]
+    
+    #두번째 K-Means (새로운 Centroid와 군집의 크기(MaxDist)를 구함)
+    final_result_second=kmeans(trainX[:,:-1],k,max_iter)
+    kmeans_result_second=final_result_second[0]
+    centroid_result_second=final_result_second[1]
+    
+    NoveltyScore_result_second=getNoveltyScore(kmeans_result_second,centroid_result_second,k)  
+#    Score_second=NoveltyScore_result_second[0]
+    maxDist_second=NoveltyScore_result_second[1]
+
+    #Relative Distance기반의 Novelty Score    
+    RelativeScore=getModNoveltyScore(kmeans_result,centroid_result_second,maxDist_second,k)
+
+    print('final centroid_second:',centroid_result_second)
+    print('maxDist_second:',maxDist_second)
+    print('Relative Novelty Score:',RelativeScore)    
+   
+    x=kmeans_result[:,0]
+    y=kmeans_result[:,1]
+    colors=kmeans_result[:,2]
+    
+    plt.figure(figsize=(7, 3), dpi=80)
+    plt.scatter(x, y, s=(RelativeScore**2)*5, c=colors,alpha=0.5);
+    plt.xticks(np.arange(-1,8,2))
+    plt.yticks(np.arange(-1.5,1.6,0.5))
+    
+main()
+```
 
 #3.PCA-based novelty detection
 
@@ -561,8 +928,110 @@ k-means클러스터링을 하는 방법은 아래와 같습니다.
 아래의 그림은 reconstruction된 그래프인데 1번의 점은 novelty score가 높고, 2번 점은 novelty score가 낮다고 판단 할 수 있습니다.
 ![](https://github.com/almond-hater/almond-hater.github.io/blob/master/pca.JPG?raw=true)
 
+*** PCA-based novelty detectio 코드***
+pca패키지를 사용하지 않은 코드입니다.
+```python
+%matplotlib inline
+import numpy as np
+import random
+import csv
+import matplotlib.pyplot as plt
 
-** 위의 이론들의 코드는 https://almond-hater.github.io에 첨부하였습니다.**
+def loadDataset(filename, split, trainingSet=[] , testSet=[]):
+    with open(filename, 'r') as csvfile:
+        lines = csv.reader(csvfile)
+        dataset = list(lines)
+        for x in range(len(dataset)):
+            for y in range(2):
+                dataset[x][y] = float(dataset[x][y])
+            if random.random() < split:
+                trainingSet.append(dataset[x])
+            else:
+                testSet.append(dataset[x])
+
+                
+def pca(X,n): 
+
+    #1st Step : subtract mean (x에 x의 average를 빼줌)
+    avg = np.mean(X,axis=0)
+    avg = np.tile(avg,(X.shape[0],1)) 
+    X -= avg; 
+    #print(avg)
+
+    #2nd Step : covariance matrix 
+    C = np.dot(X.transpose(),X)/(X.shape[0]-1)
+
+    #3rd Step : Eigen Value, Eigen Vector 
+    eig_values,eig_vecs = np.linalg.eig(C)
+
+    #4rd Step : Select n개의 PC  (eigenvalue의 가장 왼쪽에 있는 수가 큰 eigenvalue가 되도록 정렬)
+    idx = np.argsort(eig_values)[-n:][::-1]
+    eig_values = eig_values[idx] 
+    eig_vecs = eig_vecs[:,idx] 
+    
+    #print(eig_values.argsort())
+    #print(eig_values.argsort()[-n:])
+    #print(idx)
+    #print(eig_values)
+    #print(eig_vecs)
+ 
+    #5th Step : new coordinate in new space (새로운 feature로 변형(2차원>1차원))
+    Y = np.dot(X,eig_vecs) 
+
+    #6th Step : reconstruction (1차원>2차원)
+    rec=np.dot(eig_vecs,Y.transpose())
+    
+    #Get NovetyScore
+    Score=np.linalg.norm(X.transpose()-rec,axis=0)     
+    
+    #print(rec)
+    #print(Score)
+    
+    return (X.transpose(), rec, Score.transpose(), eig_vecs, eig_values)
+
+```
+```python
+def main():
+
+	# prepare data
+    trainingSet=[]
+    testSet=[]
+    split = 0.8
+    random.seed(100)
+    loadDataset('ex_pca5.csv', split, trainingSet, testSet)
+    #print('Train set: ' + repr(len(trainingSet)))
+    #print('Test set: ' + repr(len(testSet)))
+
+    # n=PC개수 (Hyper parameter)  
+    n=1
+    trainX=np.array(trainingSet)
+    pca_result=pca(trainX[:,:-1].astype(np.float),n)
+
+   # print('pca result:',pca_result)
+
+    x=pca_result[0][0]
+    y=pca_result[0][1]
+    Score=pca_result[2]*100
+
+    print('Eigen Value : ', pca_result[4])
+    print('Eigen Vector : ', pca_result[3])    
+    print('Data X : ', np.transpose(pca_result[0])[:10])
+    print('Reconstruction : ', np.transpose(pca_result[1])[:10])
+    print('Novelty Score : ', np.transpose(pca_result[2])[:10])
+        
+    x_rec=pca_result[1][0]
+    y_rec=pca_result[1][1]
+    
+    plt.figure(figsize=(6, 6), dpi=80)
+    plt.scatter(x,y,s=Score);
+    plt.scatter(x_rec,y_rec,s=20);
+    plt.xticks(np.arange(-3,3,0.5))
+    plt.yticks(np.arange(-3,3,0.5))
+         
+main()
+
+```
+** 위의 이론들의 데이터는 https://almond-hater.github.io에 첨부하였습니다.**
 
 
 

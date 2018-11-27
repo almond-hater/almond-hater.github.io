@@ -367,11 +367,11 @@ K-means clustering-based novelty score는 가장 가까운 중심에 대한 거�
 
 k-means클러스터링을 하는 방법은 아래와 같습니다.
 
-1. 랜덤하게 중심점(centroid) 설정
-2. 설정된 중심을 기반으로 객체 할당
-3. 각각 구해진 영역에 대해 중심점(centroid)을 구함
-4. 이 중심점(centroid)를 기반으로 객체 할당
-5. 이것을 변하지 않을때까지 반복
+1단계 랜덤하게 중심점(centroid) 설정
+2단계 설정된 중심을 기반으로 객체 할당
+3단계 각각 구해진 영역에 대해 중심점(centroid)을 구함
+4단계 이 중심점(centroid)를 기반으로 객체 할당
+5단계 이것을 변하지 않을때까지 반복
 ![](https://github.com/pilsung-kang/Business-Analytics/blob/master/03%20Novelty%20Detection/Tutorial%2009%20-%20Distance%20and%20reconstruction-based%20novelty%20detection/KMEANS/kmeans_image2.JPG?raw=true)
 
 
@@ -394,10 +394,11 @@ k-means클러스터링을 하는 방법은 아래와 같습니다.
 
 ![](https://github.com/pilsung-kang/Business-Analytics/blob/master/03%20Novelty%20Detection/Tutorial%2009%20-%20Distance%20and%20reconstruction-based%20novelty%20detection/PCA/PCA2.JPG?raw=true)
 
+아래의 그림은 reconstruction된 그래프인데 1번의 점은 novelty score가 높고, 2번 점은 novelty score가 낮다고 판단 할 수 있습니다.
+![](https://github.com/almond-hater/almond-hater.github.io/blob/master/pca.JPG?raw=true)
 
 
-
-
+** 위의 이론들의 코드는 https://almond-hater.github.io에 첨부하였습니다.**
 
 
 

@@ -347,13 +347,15 @@ figure10와 같이 실제 데이터에도 적용해 보았는데 21개 실제데
 
 ![](https://github.com/almond-hater/almond-hater.github.io/blob/master/11.png?raw=true)
 
+*** hybrid novelty detection 코드***
+`import math` 
+`import numpy as np`
+`import operator`
+`from collections import namedtuple `
+`import matplotlib.pyplot as plt`
 
-
-
-
-
-
-
+필요한 패키지를 로드합니다.
+그리고 convex의 거리를 구하기 위해 Convex hull의 좌표를 구합니다.
 
 #2.K-means clustering-based novelty detection
 
@@ -399,8 +401,6 @@ k-means클러스터링을 하는 방법은 아래와 같습니다.
 
 
 ** 위의 이론들의 코드는 https://almond-hater.github.io에 첨부하였습니다.**
-
-
 
 
 
